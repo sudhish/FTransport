@@ -1,0 +1,67 @@
+# FTransport Default Configuration
+# This file contains default settings - DO NOT put sensitive data here
+
+app:
+  name: "FTransport"
+  version: "1.0.0"
+  environment: "development"
+  
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins:
+    - "http://localhost:3000"
+    - "http://localhost:8080"
+
+database:
+  # Default to SQLite for development
+  url: "sqlite:///./ftransport.db"
+  echo: false
+
+security:
+  algorithm: "HS256"
+  access_token_expire_minutes: 30
+  # Note: secret_key should be provided via environment variable
+
+# Google Cloud settings (values provided via environment)
+google:
+  # service_account_key_path: # Set via GOOGLE_SERVICE_ACCOUNT_KEY
+  # project_id: # Set via GOOGLE_CLOUD_PROJECT_ID  
+  # drive_landing_zone_id: # Set via GOOGLE_DRIVE_LANDING_ZONE
+  scopes:
+    - "https://www.googleapis.com/auth/drive"
+    - "https://www.googleapis.com/auth/cloud-platform"
+
+# Third-party integrations (credentials via environment)
+integrations:
+  dropbox:
+    # app_key: # Set via DROPBOX_APP_KEY
+    # app_secret: # Set via DROPBOX_APP_SECRET
+  onedrive:
+    # client_id: # Set via ONEDRIVE_CLIENT_ID
+    # client_secret: # Set via ONEDRIVE_CLIENT_SECRET
+  notebooklm:
+    # project_id: # Set via NOTEBOOKLM_PROJECT_ID
+    api_base_url: "https://aiplatform.googleapis.com/v1"
+
+# Email notifications (credentials via environment)
+email:
+  enabled: false
+  # smtp_host: # Set via SMTP_HOST
+  # smtp_port: # Set via SMTP_PORT  
+  # smtp_user: # Set via SMTP_USER
+  # smtp_password: # Set via SMTP_PASSWORD
+
+# Transfer settings
+transfer:
+  max_concurrent: 5
+  max_file_size_gb: 2
+  min_transfer_rate_mbps: 10
+  retry_attempts: 3
+  retry_delay_seconds: 5
+
+# Monitoring and logging
+monitoring:
+  log_level: "INFO"
+  enable_metrics: true
+  enable_health_checks: true

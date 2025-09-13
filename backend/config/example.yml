@@ -1,0 +1,60 @@
+# FTransport Example Configuration
+# Copy this file to production.yml and customize with your settings
+
+app:
+  name: "FTransport"
+  version: "1.0.0"
+  environment: "production"
+
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins:
+    - "https://your-frontend-domain.com"
+
+database:
+  url: "postgresql://user:password@localhost:5432/ftransport"
+  echo: false
+
+security:
+  algorithm: "HS256"
+  access_token_expire_minutes: 720  # 12 hours for production
+
+# Example Google Cloud settings - replace with your values
+google:
+  service_account_key_path: "/path/to/your/service-account-key.json"
+  project_id: "your-google-cloud-project-id"
+  drive_landing_zone_id: "your-google-drive-folder-id"
+
+# Example third-party integration settings
+integrations:
+  dropbox:
+    app_key: "your-dropbox-app-key"
+    app_secret: "your-dropbox-app-secret"
+  onedrive:
+    client_id: "your-onedrive-client-id" 
+    client_secret: "your-onedrive-client-secret"
+  notebooklm:
+    project_id: "your-notebooklm-project-id"
+
+# Example email settings
+email:
+  enabled: true
+  smtp_host: "smtp.gmail.com"
+  smtp_port: 587
+  smtp_user: "your-email@gmail.com"
+  smtp_password: "your-app-password"
+
+# Production transfer settings
+transfer:
+  max_concurrent: 10
+  max_file_size_gb: 5
+  min_transfer_rate_mbps: 50
+  retry_attempts: 5
+  retry_delay_seconds: 10
+
+# Production monitoring
+monitoring:
+  log_level: "WARNING"
+  enable_metrics: true
+  enable_health_checks: true

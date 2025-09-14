@@ -36,7 +36,9 @@ A web-based platform for migrating data from shared drives (Google Drive, OneDri
 1. **Install dependencies**:
    ```bash
    cd backend
-   pip install -r requirements.txt
+   uv venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   uv pip install -r requirements.txt
    ```
 
 2. **Environment configuration**:

@@ -24,7 +24,8 @@ import {
   Pending,
   Sync,
   Cancel,
-  Description
+  Description,
+  ContentCopy
 } from '@mui/icons-material';
 
 import { useTransfer } from '../context/TransferContext.tsx';
@@ -106,7 +107,10 @@ const TransferDetail: React.FC = () => {
       case 'failed':
         return <Error color="error" />;
       case 'in_progress':
+      case 'transferring':
         return <Sync color="primary" />;
+      case 'discovered':
+        return <Description color="info" />;
       case 'pending':
       default:
         return <Pending color="action" />;
@@ -188,6 +192,46 @@ const TransferDetail: React.FC = () => {
                 Transfer Details
               </Typography>
               
+              {/* Transfer ID for log tracking */}
+              <Box mb={2} sx={{ bgcolor: 'grey.50', p: 2, borderRadius: 1 }}>
+                <Typography variant="body2" color="text.secondary" gutterBottom>
+                  Transfer ID (for log tracking):
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography 
+                    variant="body1" 
+                    component="code" 
+                    sx={{ 
+                      fontFamily: 'monospace', 
+                      fontSize: '0.875rem',
+                      backgroundColor: 'background.paper',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      flexGrow: 1
+                    }}
+                  >
+                    {transfer.id}
+                  </Typography>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<ContentCopy />}
+                    onClick={() => {
+                      navigator.clipboard.writeText(transfer.id);
+                      // Could add a toast notification here
+                    }}
+                    sx={{ minWidth: 'auto' }}
+                  >
+                    Copy
+                  </Button>
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Use this ID to search backend logs: <code>grep "{transfer.id}" logs/transfers.log</code>
+                </Typography>
+              </Box>
+              
               <Box mb={2}>
                 <Typography variant="body2" color="text.secondary">
                   Source URL:
@@ -205,6 +249,18 @@ const TransferDetail: React.FC = () => {
                   variant="outlined"
                 />
               </Box>
+
+              {/* Current Stage Information */}
+              {lastProgress?.stage && (
+                <Box mb={2}>
+                  <Typography variant="body2" color="text.secondary">
+                    Current Stage:
+                  </Typography>
+                  <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                    {lastProgress.stage}
+                  </Typography>
+                </Box>
+              )}
 
               {transfer.total_files > 0 && (
                 <Box mb={2}>
@@ -271,6 +327,15 @@ const TransferDetail: React.FC = () => {
                 Real-time Updates: {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
               </Typography>
               
+              {/* Connection Status */}
+              {lastProgress?.stage && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Status: {lastProgress.stage.includes('Connected to') ? '🟢' : 
+                          lastProgress.stage.includes('Failed to') ? '🔴' : 
+                          lastProgress.stage.includes('connection') ? '🟡' : ''} {lastProgress.stage}
+                </Typography>
+              )}
+              
               {transfer.notebooklm_notebook_id && (
                 <>
                   <Divider sx={{ my: 2 }} />
@@ -282,6 +347,47 @@ const TransferDetail: React.FC = () => {
             </CardContent>
           </Card>
         </Grid>
+
+        {/* Real-time File Details */}
+        {lastProgress?.file_details && lastProgress.file_details.length > 0 && (
+          <Grid item xs={12}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>
+                  Real-time File Status ({lastProgress.file_details.length} files discovered)
+                </Typography>
+                <List dense>
+                  {lastProgress.file_details.map((file, index) => (
+                    <React.Fragment key={index}>
+                      <ListItem>
+                        <ListItemIcon>
+                          {getFileStatusIcon(file.status)}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={file.name}
+                          secondary={
+                            <Box>
+                              <Typography variant="caption" component="span">
+                                Status: {file.status} | Size: {formatFileSize(file.size)}
+                              </Typography>
+                              {file.bytes_transferred > 0 && (
+                                <Typography variant="caption" component="div">
+                                  Transferred: {formatFileSize(file.bytes_transferred)}
+                                  {file.size && ` (${Math.round((file.bytes_transferred / file.size) * 100)}%)`}
+                                </Typography>
+                              )}
+                            </Box>
+                          }
+                        />
+                      </ListItem>
+                      {index < lastProgress.file_details.length - 1 && <Divider />}
+                    </React.Fragment>
+                  ))}
+                </List>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
 
         {/* File List */}
         {files.length > 0 && (

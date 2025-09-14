@@ -106,6 +106,19 @@ const TransferCard: React.FC<TransferCardProps> = ({ transfer, onClick }) => {
           Created: {formatDate(transfer.created_at)}
         </Typography>
 
+        <Typography 
+          variant="caption" 
+          color="text.secondary" 
+          sx={{ 
+            fontFamily: 'monospace', 
+            fontSize: '0.7rem',
+            display: 'block',
+            mb: 1
+          }}
+        >
+          ID: {transfer.id.substring(0, 8)}...
+        </Typography>
+
         {transfer.total_files > 0 && (
           <Box mt={2}>
             <Typography variant="body2" gutterBottom>

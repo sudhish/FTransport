@@ -96,6 +96,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_nested_delimiter = "__"
+        extra = "allow"  # Allow extra fields and dynamic attributes
 
 
 def load_yaml_config(config_path: str) -> Dict[str, Any]:
@@ -197,6 +198,16 @@ def create_settings() -> Settings:
     
     if env_overrides:
         config = deep_merge(config, env_overrides)
+    
+    # Ensure nested configs have proper structure
+    if 'integrations' not in config:
+        config['integrations'] = {}
+    if 'dropbox' not in config['integrations']:
+        config['integrations']['dropbox'] = {}
+    if 'onedrive' not in config['integrations']:
+        config['integrations']['onedrive'] = {}
+    if 'notebooklm' not in config['integrations']:
+        config['integrations']['notebooklm'] = {}
     
     # Create Settings instance from merged config
     try:

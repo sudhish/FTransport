@@ -10,6 +10,11 @@ class DriveType(str, Enum):
     DROPBOX = "dropbox"
 
 
+class TransferMode(str, Enum):
+    DIRECT_TO_NOTEBOOKLM = "direct_to_notebooklm"
+    VIA_GOOGLE_DRIVE = "via_google_drive"
+
+
 class TransferStatus(str, Enum):
     PENDING = "pending"
     SCANNING = "scanning"
@@ -22,12 +27,14 @@ class TransferStatus(str, Enum):
 
 class TransferCreate(BaseModel):
     source_url: str
+    transfer_mode: Optional[TransferMode] = TransferMode.DIRECT_TO_NOTEBOOKLM
 
 
 class TransferResponse(BaseModel):
     id: str
     source_url: str
     drive_type: DriveType
+    transfer_mode: TransferMode
     status: TransferStatus
     
     total_files: int

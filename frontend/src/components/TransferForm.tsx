@@ -12,16 +12,17 @@ import {
   MenuItem
 } from '@mui/material';
 import { api } from '../services/api.ts';
-import { DriveType } from '../types/index.ts';
+import { DriveType, TransferMode } from '../types/index.ts';
 
 interface TransferFormProps {
-  onSubmit: (sourceUrl: string) => Promise<void>;
+  onSubmit: (sourceUrl: string, transferMode: TransferMode) => Promise<void>;
   onCancel: () => void;
   loading: boolean;
 }
 
 const TransferForm: React.FC<TransferFormProps> = ({ onSubmit, onCancel, loading }) => {
   const [sourceUrl, setSourceUrl] = useState('');
+  const [transferMode, setTransferMode] = useState<TransferMode>(TransferMode.DIRECT_TO_NOTEBOOKLM);
   const [validating, setValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -62,7 +63,7 @@ const TransferForm: React.FC<TransferFormProps> = ({ onSubmit, onCancel, loading
     }
 
     try {
-      await onSubmit(sourceUrl);
+      await onSubmit(sourceUrl, transferMode);
     } catch (err) {
       setError('Failed to create transfer');
     }
@@ -126,6 +127,24 @@ const TransferForm: React.FC<TransferFormProps> = ({ onSubmit, onCancel, loading
           </Box>
         )}
       </Box>
+
+      {validationResult?.valid && (
+        <FormControl fullWidth margin="normal">
+          <InputLabel>Transfer Mode</InputLabel>
+          <Select
+            value={transferMode}
+            onChange={(e) => setTransferMode(e.target.value as TransferMode)}
+            label="Transfer Mode"
+          >
+            <MenuItem value={TransferMode.DIRECT_TO_NOTEBOOKLM}>
+              Direct to NotebookLM (Faster)
+            </MenuItem>
+            <MenuItem value={TransferMode.VIA_GOOGLE_DRIVE}>
+              Via Google Drive Landing Zone (Safer)
+            </MenuItem>
+          </Select>
+        </FormControl>
+      )}
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>

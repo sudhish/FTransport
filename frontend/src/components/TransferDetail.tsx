@@ -28,6 +28,7 @@ import {
 } from '@mui/icons-material';
 
 import { useTransfer } from '../context/TransferContext.tsx';
+import { transferLogger, websocketLogger } from '../utils/logger.ts';
 import { useWebSocket } from '../hooks/useWebSocket.ts';
 import { api } from '../services/api.ts';
 import { Transfer, FileTransfer, TransferStatus } from '../types/index.ts';

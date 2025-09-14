@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { Transfer, CreateTransferRequest, URLValidationResponse, FileTransfer } from '../types/index.ts';
+import { apiLogger } from '../utils/logger.ts';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -16,8 +17,24 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  apiLogger.debug(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
   return config;
 });
+
+// Log responses and handle errors
+apiClient.interceptors.response.use(
+  (response) => {
+    apiLogger.debug(`API Response: ${response.status} ${response.config.url}`);
+    return response;
+  },
+  (error) => {
+    const url = error.config?.url || 'unknown';
+    const status = error.response?.status || 'no response';
+    const message = error.response?.data?.detail || error.message;
+    apiLogger.error(`API Error: ${status} ${url} - ${message}`);
+    return Promise.reject(error);
+  }
+);
 
 export const api = {
   // Auth endpoints
@@ -59,6 +76,11 @@ export const api = {
 
   cancelTransfer: async (transferId: string) => {
     const response = await apiClient.delete(`/api/transfers/${transferId}`);
+    return response.data;
+  },
+
+  clearCompletedTransfers: async () => {
+    const response = await apiClient.delete('/api/transfers/');
     return response.data;
   },
 

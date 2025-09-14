@@ -17,7 +17,7 @@ import {
   CloudUpload,
   Cancel
 } from '@mui/icons-material';
-import { Transfer, TransferStatus, DriveType } from '../types/index.ts';
+import { Transfer, TransferStatus, DriveType, TransferMode } from '../types/index.ts';
 
 interface TransferCardProps {
   transfer: Transfer;
@@ -85,9 +85,14 @@ const TransferCard: React.FC<TransferCardProps> = ({ transfer, onClick }) => {
             color={getStatusColor(transfer.status) as any}
             variant="outlined"
           />
-          <Typography variant="caption" color="text.secondary">
-            {getDriveTypeLabel(transfer.drive_type)}
-          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+            <Typography variant="caption" color="text.secondary">
+              {getDriveTypeLabel(transfer.drive_type)}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
+              {transfer.transfer_mode === TransferMode.VIA_GOOGLE_DRIVE ? 'Via Drive' : 'Direct'}
+            </Typography>
+          </Box>
         </Box>
 
         <Typography variant="h6" component="div" noWrap title={transfer.source_url}>

@@ -9,12 +9,14 @@ import urllib.parse
 import re
 
 from app.config import settings
+from app.logging_config import get_logger
 
 
 class GoogleDriveService:
     def __init__(self):
         self.credentials = None
         self.service = None
+        self.logger = get_logger("google_drive")
         self._initialize_service()
     
     def _initialize_service(self):
@@ -31,13 +33,13 @@ class GoogleDriveService:
                 import json
                 with open(settings.google_service_account_key, 'r') as f:
                     key_data = json.load(f)
-                    print(f"✅ Google Drive service initialized")
-                    print(f"📋 Service Account Project: {key_data.get('project_id')}")
-                    print(f"📋 Service Account Email: {key_data.get('client_email')}")
+                    self.logger.info(f"✅ Google Drive service initialized")
+                    self.logger.info(f"📋 Service Account Project: {key_data.get('project_id')}")
+                    self.logger.info(f"📋 Service Account Email: {key_data.get('client_email')}")
             else:
-                print(f"❌ Service account key not found at: {settings.google_service_account_key}")
+                self.logger.error(f"❌ Service account key not found at: {settings.google_service_account_key}")
         except Exception as e:
-            print(f"❌ Failed to initialize Google Drive service: {str(e)}")
+            self.logger.error(f"❌ Failed to initialize Google Drive service: {str(e)}")
     
     def _extract_folder_id_from_url(self, url: str) -> str:
         """Extract folder ID from Google Drive URL"""
@@ -62,16 +64,16 @@ class GoogleDriveService:
             raise Exception("Google Drive service not initialized")
         
         folder_id = self._extract_folder_id_from_url(source_url)
-        print(f"📁 Scanning Google Drive folder: {folder_id}")
+        self.logger.info(f"📁 Scanning Google Drive folder: {folder_id}")
         
         files = []
         try:
             # Get files in the folder recursively
             files = await self._list_files_recursive(folder_id)
-            print(f"📊 Found {len(files)} files in Google Drive folder")
+            self.logger.info(f"📊 Found {len(files)} files in Google Drive folder")
             return files
         except HttpError as e:
-            print(f"❌ Error accessing Google Drive folder: {str(e)}")
+            self.logger.error(f"❌ Error accessing Google Drive folder: {str(e)}")
             if e.resp.status == 404:
                 raise Exception(f"Folder not found or not accessible: {folder_id}")
             elif e.resp.status == 403:
@@ -121,7 +123,7 @@ class GoogleDriveService:
                     break
                     
             except HttpError as e:
-                print(f"❌ Error listing files in folder {folder_id}: {str(e)}")
+                self.logger.error(f"❌ Error listing files in folder {folder_id}: {str(e)}")
                 break
         
         return files
@@ -155,7 +157,7 @@ class GoogleDriveService:
             return file_io.read()
             
         except HttpError as e:
-            print(f"❌ Error downloading file {file_id}: {str(e)}")
+            self.logger.error(f"❌ Error downloading file {file_id}: {str(e)}")
             raise Exception(f"Failed to download file: {str(e)}")
     
     async def create_folder(self, folder_name: str, parent_folder_id: Optional[str] = None) -> str:
@@ -182,11 +184,11 @@ class GoogleDriveService:
             ).execute()
             
             folder_id = folder.get('id')
-            print(f"📁 Created folder '{folder_name}' with ID: {folder_id}")
+            self.logger.info(f"📁 Created folder '{folder_name}' with ID: {folder_id}")
             return folder_id
             
         except HttpError as e:
-            print(f"❌ Error creating folder: {str(e)}")
+            self.logger.error(f"❌ Error creating folder: {str(e)}")
             raise Exception(f"Failed to create folder: {str(e)}")
     
     async def upload_file(
@@ -234,11 +236,11 @@ class GoogleDriveService:
                         await progress_callback(uploaded_bytes, total_bytes)
             
             file_id = response.get('id')
-            print(f"📄 Uploaded file '{file_name}' with ID: {file_id}")
+            self.logger.info(f"📄 Uploaded file '{file_name}' with ID: {file_id}")
             return file_id
             
         except HttpError as e:
-            print(f"❌ Error uploading file: {str(e)}")
+            self.logger.error(f"❌ Error uploading file: {str(e)}")
             raise Exception(f"Failed to upload file: {str(e)}")
     
     async def copy_file_direct(
@@ -278,11 +280,11 @@ class GoogleDriveService:
                 await progress_callback(100, 100)
             
             file_id = copied_file.get('id')
-            print(f"📄 Copied file '{source_file['name']}' to folder {dest_folder_id}")
+            self.logger.info(f"📄 Copied file '{source_file['name']}' to folder {dest_folder_id}")
             return file_id
             
         except HttpError as e:
-            print(f"❌ Error copying file: {str(e)}")
+            self.logger.error(f"❌ Error copying file: {str(e)}")
             raise Exception(f"Failed to copy file: {str(e)}")
     
     async def list_files_in_folder(self, folder_id: str) -> List[Dict[str, Any]]:
@@ -300,5 +302,5 @@ class GoogleDriveService:
             return results.get('files', [])
             
         except HttpError as e:
-            print(f"❌ Error listing files in folder: {str(e)}")
+            self.logger.error(f"❌ Error listing files in folder: {str(e)}")
             raise Exception(f"Failed to list files: {str(e)}")

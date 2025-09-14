@@ -8,6 +8,7 @@ from typing import Dict
 from app.config import settings
 from app.database import init_db
 from app.routers import transfers, auth, health
+from app.logging_config import setup_logging, get_logger
 
 
 # WebSocket connection manager
@@ -38,9 +39,14 @@ manager = ConnectionManager()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    setup_logging()
+    logger = get_logger()
+    logger.info("🚀 Starting FTransport backend server")
     init_db()
+    logger.info("📊 Database initialized")
     yield
     # Shutdown
+    logger.info("🛑 Shutting down FTransport backend server")
     pass
 
 

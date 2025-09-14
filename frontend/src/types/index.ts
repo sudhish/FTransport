@@ -2,6 +2,7 @@ export interface Transfer {
   id: string;
   source_url: string;
   drive_type: DriveType;
+  transfer_mode: TransferMode;
   status: TransferStatus;
   total_files: number;
   files_completed: number;
@@ -20,6 +21,11 @@ export enum DriveType {
   GOOGLE_DRIVE = 'google_drive',
   ONEDRIVE = 'onedrive',
   DROPBOX = 'dropbox'
+}
+
+export enum TransferMode {
+  DIRECT_TO_NOTEBOOKLM = 'direct_to_notebooklm',
+  VIA_GOOGLE_DRIVE = 'via_google_drive'
 }
 
 export enum TransferStatus {
@@ -64,6 +70,7 @@ export interface TransferProgress {
 
 export interface CreateTransferRequest {
   source_url: string;
+  transfer_mode?: TransferMode;
 }
 
 export interface URLValidationResponse {

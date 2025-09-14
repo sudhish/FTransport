@@ -29,12 +29,18 @@ class DriveType(enum.Enum):
     DROPBOX = "dropbox"
 
 
+class TransferMode(enum.Enum):
+    DIRECT_TO_NOTEBOOKLM = "direct_to_notebooklm"
+    VIA_GOOGLE_DRIVE = "via_google_drive"
+
+
 class Transfer(Base):
     __tablename__ = "transfers"
 
     id = Column(String, primary_key=True, index=True)
     source_url = Column(String, nullable=False)
     drive_type = Column(Enum(DriveType), nullable=False)
+    transfer_mode = Column(Enum(TransferMode), default=TransferMode.DIRECT_TO_NOTEBOOKLM)
     status = Column(Enum(TransferStatus), default=TransferStatus.PENDING)
     
     # Progress tracking

@@ -7,14 +7,14 @@ A web-based platform for migrating data from shared drives (Google Drive, OneDri
 - **Multi-Source Support**: Google Drive, OneDrive, and Dropbox
 - **Real-time Progress**: WebSocket-based live updates
 - **File-level Tracking**: Individual file transfer progress
-- **Workflow Management**: Prefect-powered robust workflows
+- **Robust Workflows**: AsyncIO-powered transfer processing
 - **Enterprise Ready**: OAuth authentication, audit trails
 
 ## Architecture
 
 ### Backend
 - **FastAPI** - REST API server
-- **Prefect** - Workflow engine with built-in UI and logging
+- **AsyncIO** - Asynchronous workflow processing
 - **PostgreSQL/SQLite** - Data persistence
 - **WebSocket** - Real-time updates
 
@@ -137,6 +137,10 @@ GOOGLE_CLOUD_PROJECT_ID=my-project-12345
 
 # For NotebookLM (usually same as GOOGLE_CLOUD_PROJECT_ID)
 NOTEBOOKLM_PROJECT_ID=my-project-12345
+
+# OPTIONAL: Specify a Google Drive folder as landing zone (recommended)
+# Extract folder ID from URL: https://drive.google.com/drive/folders/YOUR_FOLDER_ID
+# GOOGLE_DRIVE_LANDING_ZONE=1AbCdEfGhIjKlMnOpQrStUvWxYz
 ```
 
 #### 6. Verify Setup
@@ -152,7 +156,26 @@ print(f'✅ Project ID: {settings.google_cloud_project_id}')
 "
 ```
 
-#### 7. Security Best Practices
+#### 7. Google Drive Landing Zone (Optional)
+
+**Why use a landing zone folder?**
+- **Organized transfers**: All files go to a dedicated folder instead of root
+- **Easy cleanup**: Remove completed transfers by deleting folders
+- **Better permissions**: Control access to specific folders
+
+**To create a landing zone folder:**
+1. Go to [Google Drive](https://drive.google.com/)
+2. Create a new folder (e.g., "FTransport-Landing-Zone")
+3. **Share the folder** with your service account email:
+   - Right-click folder → "Share"
+   - Add your service account email (found in the JSON file)
+   - Give "Editor" permissions
+4. Copy the folder ID from the URL and add to `.env`:
+   ```bash
+   GOOGLE_DRIVE_LANDING_ZONE=1AbCdEfGhIjKlMnOpQrStUvWxYz
+   ```
+
+#### 8. Security Best Practices
 
 - **Never commit** the service account JSON file to version control
 - **Restrict file permissions**: `chmod 600 /path/to/service-account.json`
@@ -198,19 +221,6 @@ print(f'✅ Project ID: {settings.google_cloud_project_id}')
 
    The frontend will be available at http://localhost:3000
 
-### Prefect Setup
-
-1. **Start Prefect server**:
-   ```bash
-   prefect server start
-   ```
-
-   Prefect UI will be available at http://localhost:4200
-
-2. **Set API URL**:
-   ```bash
-   prefect config set PREFECT_API_URL=http://localhost:4200/api
-   ```
 
 ## Usage
 
@@ -244,7 +254,11 @@ DATABASE_URL=postgresql://user:password@localhost:5432/ftransport
 
 # Google Cloud (for NotebookLM Enterprise)
 GOOGLE_SERVICE_ACCOUNT_KEY=/path/to/service-account.json
+GOOGLE_CLOUD_PROJECT_ID=your-google-project-id
 NOTEBOOKLM_PROJECT_ID=your-project-id
+
+# OPTIONAL: Google Drive landing zone folder ID
+GOOGLE_DRIVE_LANDING_ZONE=your-folder-id
 
 # Shared Drive APIs
 DROPBOX_APP_KEY=your-dropbox-key
@@ -264,7 +278,7 @@ FTransport/
 │   ├── app/
 │   │   ├── routers/          # API endpoints
 │   │   ├── services/         # External service integrations
-│   │   ├── workflows.py      # Prefect workflows
+│   │   ├── transfer_worker.py # AsyncIO transfer workflows
 │   │   ├── database.py       # Database models
 │   │   └── main.py          # FastAPI application
 │   └── requirements.txt
@@ -327,9 +341,9 @@ To use real NotebookLM Enterprise:
 
 ### Backend
 - Use PostgreSQL for production database
-- Set up Redis for Prefect workers
 - Configure proper authentication secrets
 - Enable HTTPS with reverse proxy
+- Set up proper logging and monitoring
 
 ### Frontend
 - Build production bundle: `npm run build`
@@ -337,7 +351,7 @@ To use real NotebookLM Enterprise:
 - Configure API_URL for backend
 
 ### Monitoring
-- Prefect UI provides workflow monitoring
+- Application logs provide detailed workflow monitoring
 - Database logs all transfer operations
 - WebSocket connections for real-time updates
 

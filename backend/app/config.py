@@ -226,6 +226,7 @@ settings = create_settings()
 # Backwards compatibility properties for existing code
 settings.database_url = settings.database.url
 settings.google_service_account_key = settings.google.service_account_key_path
+settings.google_cloud_project_id = settings.google.project_id
 settings.notebooklm_project_id = settings.integrations.notebooklm.project_id
 settings.google_drive_landing_zone = settings.google.drive_landing_zone_id
 settings.dropbox_app_key = settings.integrations.dropbox.app_key

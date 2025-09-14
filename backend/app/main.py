@@ -9,6 +9,7 @@ from app.config import settings
 from app.database import init_db
 from app.routers import transfers, auth, health
 from app.logging_config import setup_logging, get_logger
+from app.config_validator import validate_config_or_exit
 
 
 # WebSocket connection manager
@@ -41,6 +42,11 @@ async def lifespan(app: FastAPI):
     # Startup
     setup_logging()
     logger = get_logger()
+    
+    # Validate configuration before starting
+    logger.info("🔍 Validating configuration...")
+    validate_config_or_exit()
+    
     logger.info("🚀 Starting FTransport backend server")
     init_db()
     logger.info("📊 Database initialized")

@@ -21,8 +21,10 @@ class TransferWorker:
         self.notebooklm_service = NotebookLMService()
         self.logger = get_logger("transfer")
     
-    async def update_progress(self, transfer_id: str, status: TransferStatus, **kwargs):
-        """Update transfer progress in database"""
+    async def update_progress(self, transfer_id: str, status: TransferStatus, stage: str = None, **kwargs):
+        """Update transfer progress in database and send WebSocket updates"""
+        from app.main import app
+        
         db = next(get_db())
         try:
             transfer = db.query(Transfer).filter(Transfer.id == transfer_id).first()
@@ -41,10 +43,26 @@ class TransferWorker:
                     transfer.completed_at = datetime.utcnow()
                 
                 db.commit()
-                self.logger.info(f"📊 Updated transfer {transfer_id}: {status.value}")
+                self.logger.info(f"📊 Updated transfer {transfer_id}: {status.value} - {stage or 'No stage'}")
                 
-                # TODO: Send WebSocket update to frontend
-                # manager.send_progress_update(transfer_id, progress_data)
+                # Send WebSocket update to frontend
+                manager = getattr(app.state, 'connection_manager', None)
+                if manager:
+                    progress_data = {
+                        "transfer_id": transfer_id,
+                        "status": status.value,
+                        "stage": stage or status.value,
+                        "overall_progress": transfer.overall_progress,
+                        "files_completed": transfer.files_completed,
+                        "total_files": transfer.total_files,
+                        "current_file": {
+                            "name": transfer.current_file_name,
+                            "progress": transfer.current_file_progress
+                        } if transfer.current_file_name else None,
+                        "file_details": kwargs.get("file_details", []),
+                        "error_message": transfer.error_message
+                    }
+                    await manager.send_progress_update(transfer_id, progress_data)
                 
         finally:
             db.close()
@@ -53,21 +71,55 @@ class TransferWorker:
         """Scan source drive and discover files"""
         self.logger.info(f"🔍 Starting scan of {drive_type.value} drive: {source_url}")
         
-        await self.update_progress(transfer_id, TransferStatus.SCANNING)
+        await self.update_progress(transfer_id, TransferStatus.SCANNING, stage="Initializing connection to source drive")
         
         # Get appropriate service based on drive type
-        if drive_type == DriveType.GOOGLE_DRIVE:
-            service = self.google_service
-        elif drive_type == DriveType.DROPBOX:
-            service = self.dropbox_service
-        elif drive_type == DriveType.ONEDRIVE:
-            service = self.onedrive_service
-        else:
-            raise ValueError(f"Unsupported drive type: {drive_type}")
+        try:
+            if drive_type == DriveType.GOOGLE_DRIVE:
+                service = self.google_service
+                await self.update_progress(transfer_id, TransferStatus.SCANNING, stage="Connected to Google Drive")
+            elif drive_type == DriveType.DROPBOX:
+                service = self.dropbox_service
+                await self.update_progress(transfer_id, TransferStatus.SCANNING, stage="Connected to Dropbox")
+            elif drive_type == DriveType.ONEDRIVE:
+                service = self.onedrive_service
+                await self.update_progress(transfer_id, TransferStatus.SCANNING, stage="Connected to OneDrive")
+            else:
+                raise ValueError(f"Unsupported drive type: {drive_type}")
+        except Exception as e:
+            self.logger.error(f"❌ Failed to connect to {drive_type.value}: {str(e)}")
+            await self.update_progress(transfer_id, TransferStatus.FAILED, 
+                                     stage=f"Failed to connect to {drive_type.value}",
+                                     error_message=f"Connection failed: {str(e)}")
+            raise
         
         # Discover files
-        files = await service.list_files(source_url)
-        self.logger.info(f"📊 Discovered {len(files)} files")
+        await self.update_progress(transfer_id, TransferStatus.SCANNING, stage="Scanning for files...")
+        try:
+            files = await service.list_files(source_url)
+            self.logger.info(f"📊 Discovered {len(files)} files")
+            
+            # Create file details for progress
+            file_details = [
+                {
+                    "name": file_info['name'],
+                    "status": "discovered",
+                    "size": file_info.get('size'),
+                    "bytes_transferred": 0
+                }
+                for file_info in files
+            ]
+            
+            await self.update_progress(transfer_id, TransferStatus.SCANNING, 
+                                     stage=f"Found {len(files)} files",
+                                     file_details=file_details)
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to scan files: {str(e)}")
+            await self.update_progress(transfer_id, TransferStatus.FAILED,
+                                     stage="Failed to scan files",
+                                     error_message=f"File scanning failed: {str(e)}")
+            raise
         
         # Update database with file list
         db = next(get_db())
@@ -92,20 +144,43 @@ class TransferWorker:
         finally:
             db.close()
         
-        await self.update_progress(transfer_id, TransferStatus.SCANNING, total_files=len(files))
+        await self.update_progress(transfer_id, TransferStatus.SCANNING, 
+                                 stage=f"Scan complete - {len(files)} files ready for transfer",
+                                 total_files=len(files),
+                                 file_details=file_details)
         return files
     
     async def create_landing_zone(self, transfer_id: str):
         """Create landing zone folder in Google Drive"""
         self.logger.info(f"📁 Creating landing zone for transfer {transfer_id}")
         
-        folder_name = f"ftransport_{transfer_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        folder_id = await self.google_service.create_folder(folder_name)
+        await self.update_progress(transfer_id, TransferStatus.TRANSFERRING, stage="Connecting to Google Drive target")
         
-        self.logger.info(f"📁 Created landing zone folder: {folder_id}")
-        await self.update_progress(transfer_id, TransferStatus.TRANSFERRING, landing_zone_folder_id=folder_id)
-        
-        return folder_id
+        try:
+            # Test Google Drive connection
+            if not self.google_service:
+                raise Exception("Google Drive service not initialized")
+            
+            await self.update_progress(transfer_id, TransferStatus.TRANSFERRING, stage="Google Drive target connected successfully")
+            
+            folder_name = f"ftransport_{transfer_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            await self.update_progress(transfer_id, TransferStatus.TRANSFERRING, stage=f"Creating landing zone folder: {folder_name}")
+            
+            folder_id = await self.google_service.create_folder(folder_name)
+            
+            self.logger.info(f"📁 Created landing zone folder: {folder_id}")
+            await self.update_progress(transfer_id, TransferStatus.TRANSFERRING, 
+                                     stage=f"Landing zone created: {folder_name}",
+                                     landing_zone_folder_id=folder_id)
+            
+            return folder_id
+            
+        except Exception as e:
+            self.logger.error(f"❌ Failed to create landing zone: {str(e)}")
+            await self.update_progress(transfer_id, TransferStatus.FAILED,
+                                     stage="Failed to create Google Drive landing zone",
+                                     error_message=f"Landing zone creation failed: {str(e)}")
+            raise
     
     async def transfer_files_to_landing_zone(self, transfer_id: str, files: List[Dict], landing_zone_id: str, source_service):
         """Transfer multiple files to Google Drive landing zone"""
@@ -148,12 +223,14 @@ class TransferWorker:
         """Transfer a single file to Google Drive landing zone"""
         file_name = file_info['name']
         file_path = file_info['path']
-        self.logger.info(f"📄 Starting transfer of file: {file_name}")
+        file_size = file_info.get('size', 0)
+        self.logger.info(f"📄 Starting transfer of file: {file_name} ({file_size} bytes)")
         
         # Update current file being transferred
         await self.update_progress(
             transfer_id, 
             TransferStatus.TRANSFERRING,
+            stage=f"Starting transfer of {file_name}",
             current_file_name=file_name,
             current_file_progress=0.0
         )
@@ -405,6 +482,44 @@ class TransferWorker:
         """Main workflow for processing a transfer"""
         self.logger.info(f"🚀 Starting transfer workflow for: {source_url} (mode: {transfer_mode.value})")
         
+        start_time = datetime.utcnow()
+        timeout_duration = 30 * 60  # 30 minutes timeout
+        
+        try:
+            # Add timeout wrapper
+            await self.update_progress(transfer_id, TransferStatus.SCANNING, 
+                                     stage="Starting transfer workflow")
+            
+            async def run_with_timeout():
+                return await self._run_transfer_workflow(transfer_id, source_url, transfer_mode, start_time)
+            
+            # Run with timeout
+            result = await asyncio.wait_for(run_with_timeout(), timeout=timeout_duration)
+            return result
+            
+        except asyncio.TimeoutError:
+            elapsed = (datetime.utcnow() - start_time).total_seconds()
+            self.logger.error(f"⏰ Transfer timed out after {elapsed:.1f} seconds")
+            await self.update_progress(
+                transfer_id, 
+                TransferStatus.FAILED,
+                stage=f"Transfer timed out after {elapsed:.1f} seconds",
+                error_message=f"Transfer operation timed out after {elapsed:.1f} seconds"
+            )
+            raise
+        except Exception as e:
+            elapsed = (datetime.utcnow() - start_time).total_seconds()
+            self.logger.error(f"❌ Transfer failed after {elapsed:.1f} seconds: {str(e)}")
+            await self.update_progress(
+                transfer_id, 
+                TransferStatus.FAILED,
+                stage=f"Transfer failed: {str(e)}",
+                error_message=str(e)
+            )
+            raise
+
+    async def _run_transfer_workflow(self, transfer_id: str, source_url: str, transfer_mode: TransferMode, start_time: datetime):
+        """Internal method to run the actual transfer workflow"""
         try:
             # Detect drive type
             drive_type = await detect_drive_type(source_url)

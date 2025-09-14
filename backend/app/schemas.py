@@ -1,28 +1,7 @@
 from pydantic import BaseModel, HttpUrl
 from datetime import datetime
 from typing import Optional, List
-from enum import Enum
-
-
-class DriveType(str, Enum):
-    GOOGLE_DRIVE = "google_drive"
-    ONEDRIVE = "onedrive"
-    DROPBOX = "dropbox"
-
-
-class TransferMode(str, Enum):
-    DIRECT_TO_NOTEBOOKLM = "direct_to_notebooklm"
-    VIA_GOOGLE_DRIVE = "via_google_drive"
-
-
-class TransferStatus(str, Enum):
-    PENDING = "pending"
-    SCANNING = "scanning"
-    TRANSFERRING = "transferring"
-    UPLOADING = "uploading"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
+from app.database import DriveType, TransferMode, TransferStatus
 
 
 class TransferCreate(BaseModel):
